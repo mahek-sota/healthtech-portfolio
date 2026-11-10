@@ -1,0 +1,996 @@
+<title>Mahek Sota · Health Data Engineering</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: an editorial feature in alternating bands (dark hero on graph paper, base, tint, base, tint, dark close).
+   Motif: lab-report result flags (H, L, !, OK), at most one per section. */
+:root {
+  --bg: #f7f8f6;
+  --tint: #edf1ee;
+  --surface: #ffffff;
+  --ink: #26312e;
+  --muted: #56635e;
+  --rule: #dde3df;
+  --accent: #4a60a1;
+  --accent-2: #377162;
+  --track: #e3e9e6;
+  --warn: #93561a;
+  --shadow: rgba(38, 49, 46, 0.10);
+  --band: #e9efec;
+  --band-2: #f9fbfa;
+  --band-ink: #26312e;
+  --band-muted: #53605b;
+  --band-rule: #d3dcd8;
+  --band-accent: #4a60a1;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171c1e; --tint: #1c2326; --surface: #20282b; --ink: #e3e8e6; --muted: #a3aeaa;
+    --rule: #2e383b; --accent: #aab8e6; --accent-2: #8ccab8; --track: #2c3639; --warn: #e7b77a;
+    --shadow: rgba(0, 0, 0, 0.35);
+    --band: #1d2528; --band-2: #182023; --band-ink: #e3e8e6; --band-muted: #a0aba7; --band-rule: #2f3a3d; --band-accent: #aab8e6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #171c1e; --tint: #1c2326; --surface: #20282b; --ink: #e3e8e6; --muted: #a3aeaa;
+  --rule: #2e383b; --accent: #aab8e6; --accent-2: #8ccab8; --track: #2c3639; --warn: #e7b77a;
+  --shadow: rgba(0, 0, 0, 0.35);
+  --band: #1d2528; --band-2: #182023; --band-ink: #e3e8e6; --band-muted: #a0aba7; --band-rule: #2f3a3d; --band-accent: #aab8e6;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--band);
+}
+.wrap {
+  max-width: 1180px; margin: 0 auto;
+  padding-left: max(clamp(20px, 6vw, 72px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(20px, 6vw, 72px), env(safe-area-inset-right, 0px));
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+.label {
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.eyebrow { display: flex; align-items: center; gap: 10px; }
+
+/* Lab-result flag */
+.flag {
+  display: inline-grid; place-items: center; min-width: 1.9em; height: 1.55em; padding: 0 0.35em;
+  font-family: var(--font-mono); font-weight: 600; font-size: 0.7rem; letter-spacing: 0.02em; line-height: 1;
+  color: var(--accent); border: 1.5px solid currentColor; border-radius: 3px;
+  font-style: normal; text-transform: none;
+}
+.flag.warn { color: var(--warn); }
+.flag.ok { color: var(--accent-2); }
+.hero .flag, .cta-band .flag { color: var(--band-accent); }
+.hero .flag.warn { color: var(--warn); }
+
+/* ---------- Nav ---------- */
+.nav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--band) 92%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--band-rule);
+}
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; height: 56px; }
+.nav .name { font-family: var(--font-display); font-weight: 600; color: var(--band-ink); white-space: nowrap; text-decoration: none; }
+.nav ul { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+.nav ul::-webkit-scrollbar { display: none; }
+.nav li a {
+  display: block; padding: 6px 12px; border-radius: 6px; white-space: nowrap;
+  font-size: 0.9rem; font-weight: 500; color: var(--band-muted); text-decoration: none;
+}
+.nav li a.nav-cta { color: var(--band-ink); border: 1px solid var(--band-rule); }
+.nav li a:hover { color: var(--band-ink); background: var(--band-rule); }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; background: var(--band); color: var(--band-ink); overflow: hidden; }
+.hero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--band-ink) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--band-ink) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--band-ink) 3.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--band-ink) 3.5%, transparent) 1px, transparent 1px);
+  background-size: 140px 140px, 140px 140px, 28px 28px, 28px 28px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 70% 30%, #000 30%, transparent 85%);
+  mask-image: radial-gradient(ellipse 90% 80% at 70% 30%, #000 30%, transparent 85%);
+}
+.hero .wrap { position: relative; padding-block: 72px 88px; display: grid; gap: 48px; }
+.hero .label { color: var(--band-muted); }
+.hero-head { display: grid; gap: 28px; }
+.status {
+  display: inline-flex; align-items: center; gap: 10px; justify-self: start;
+  font-size: 0.85rem; font-weight: 500; color: var(--band-ink);
+  padding: 6px 12px 6px 10px; border-radius: 999px;
+  border: 1px solid var(--band-rule); background: color-mix(in srgb, var(--band) 70%, var(--band-ink) 4%);
+}
+.pulse { width: 8px; height: 8px; border-radius: 50%; background: #4fae8f; box-shadow: 0 0 0 0 rgba(79, 174, 143, 0.6); }
+@media (prefers-reduced-motion: no-preference) {
+  .pulse { animation: pulse 2.2s ease-out infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(79, 174, 143, 0.55); } 70% { box-shadow: 0 0 0 9px rgba(79, 174, 143, 0); } 100% { box-shadow: 0 0 0 0 rgba(79, 174, 143, 0); } }
+}
+h1 {
+  font-size: clamp(1.1rem, 1.7vw, 1.4rem); font-weight: 600; letter-spacing: 0; line-height: 1.2;
+  color: var(--band-ink);
+}
+h1 em {
+  display: block; margin-top: 14px; max-width: 20ch;
+  font-style: normal; font-weight: 700; color: var(--band-ink);
+  font-size: clamp(2.1rem, 4.4vw, 3.6rem); line-height: 1.05; letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+h1 em::first-line { color: var(--band-accent); }
+.hero-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; }
+.hero-left { display: grid; gap: 26px; }
+.lede { font-size: 1.15rem; line-height: 1.65; color: var(--band-muted); max-width: 54ch; }
+.lede strong { color: var(--band-ink); font-weight: 500; }
+.lede a {
+  color: var(--band-ink); font-weight: 500;
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, var(--band-ink) 35%, transparent);
+}
+.lede a:hover { text-decoration-color: var(--band-accent); }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 8px;
+  font: inherit; font-weight: 600; font-size: 0.95rem; text-decoration: none; cursor: pointer;
+  border: 1px solid var(--band-rule); color: var(--band-ink); background: transparent;
+}
+.btn.primary { background: var(--band-accent); border-color: var(--band-accent); color: var(--band); }
+.btn:hover { border-color: var(--band-accent); }
+.standards { display: flex; flex-wrap: wrap; gap: 6px; }
+.standards span {
+  font-family: var(--font-mono); font-size: 0.74rem; padding: 3px 8px;
+  border: 1px solid var(--band-rule); border-radius: 3px; color: var(--band-muted);
+}
+
+/* Counter instrument */
+.count {
+  background: var(--band-2);
+  border: 1px solid var(--band-rule); border-radius: 16px; padding: 28px;
+  display: grid; gap: 18px; min-width: 0;
+  box-shadow: 0 1px 2px var(--shadow), 0 24px 48px -28px var(--shadow);
+}
+.count-q { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; line-height: 1.25; }
+.count-big { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.count-big .n {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(2.5rem, 4.6vw, 3.3rem);
+  line-height: 0.95; color: var(--band-accent); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+.count-big .unit { color: var(--band-muted); font-size: 0.95rem; }
+.defs { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.defs button {
+  width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 3.2em; gap: 6px 12px; align-items: center;
+  padding: 9px 10px; border-radius: 8px; border: 1px solid transparent;
+  background: transparent; color: var(--band-ink); font: inherit; text-align: left; cursor: pointer;
+}
+.defs button:hover { background: color-mix(in srgb, var(--band-ink) 6%, transparent); }
+.defs button[aria-pressed="true"] { border-color: var(--band-accent); background: color-mix(in srgb, var(--band-accent) 12%, transparent); }
+.defs .d { font-size: 0.88rem; line-height: 1.3; }
+.defs .v { font-family: var(--font-mono); font-size: 0.86rem; text-align: right; font-variant-numeric: tabular-nums; }
+.defs .bar { grid-column: 1 / -1; height: 4px; background: var(--band-rule); border-radius: 2px; overflow: hidden; }
+.defs .bar i { display: block; height: 100%; background: var(--band-muted); border-radius: 2px; }
+.defs button[aria-pressed="true"] .bar i { background: var(--band-accent); }
+.count-note { font-size: 0.82rem; color: var(--band-muted); }
+.count-note a { color: var(--band-accent); }
+
+/* ---------- How I work ---------- */
+.why { padding-block: 96px 88px; display: grid; gap: 64px; scroll-margin-top: 52px; }
+.why-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 72px; align-items: end; }
+.why-intro { display: grid; gap: 20px; }
+.why-intro h2 { font-size: clamp(1.8rem, 3.2vw, 2.6rem); font-weight: 700; line-height: 1.08; letter-spacing: -0.025em; }
+.why-ledes { display: grid; gap: 16px; }
+.why-lede { color: var(--muted); font-size: 1.06rem; max-width: 52ch; }
+.why-lede:first-child { color: var(--ink); font-size: 1.1rem; }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px 72px; }
+.rules li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 24px; align-content: start; min-width: 0; }
+.rules .num {
+  grid-row: span 3; font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(2.2rem, 3.4vw, 3rem); line-height: 0.9; letter-spacing: -0.03em;
+  color: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  font-variant-numeric: tabular-nums;
+}
+.r-k { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.15rem, 1.6vw, 1.35rem); line-height: 1.2; letter-spacing: -0.015em; }
+.rules p { font-size: 1rem; color: var(--muted); max-width: 46ch; margin-top: 8px; }
+.rules a {
+  justify-self: start; margin-top: 14px;
+  font-family: var(--font-mono); font-size: 0.72rem; text-decoration: none; color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent); padding: 4px 9px; border-radius: 4px;
+}
+.rules a:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+/* What I bring: one band */
+.bring { border-top: 2px solid var(--ink); padding-top: 22px; display: grid; gap: 22px; }
+.bring dl {
+  margin: 0; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); gap: 28px 48px;
+}
+.bring dl > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.bring dl > div:first-child { grid-row: span 2; padding-right: 8px; }
+.bring dt { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+.bring dd { margin: 0; font-size: 0.93rem; color: var(--muted); }
+.bring dl > div:first-child dd { font-size: 1rem; color: var(--ink); line-height: 1.65; }
+
+/* ---------- Timeline ---------- */
+.path-band { background: var(--tint); }
+.path { padding-block: 88px; display: grid; gap: 40px; }
+.path ol { list-style: none; margin: 0; padding: 0; position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.path ol::before {
+  content: ""; position: absolute; top: 7px; left: 8px; right: calc(20% - 8px); height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  opacity: 0.55;
+}
+.path li { position: relative; min-width: 0; }
+.path li::before {
+  content: ""; position: absolute; top: 0; left: 0; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--tint); border: 3px solid var(--accent); box-sizing: border-box;
+}
+.path li:last-child::before { border-color: var(--accent-2); background: var(--accent-2); }
+.path a { display: grid; gap: 8px; padding: 36px 24px 4px 0; text-decoration: none; color: var(--ink); }
+.path a:hover strong { color: var(--accent); }
+.path .step { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; }
+.path strong { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; line-height: 1.2; }
+.path span.p { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); overflow-wrap: anywhere; }
+
+/* ---------- Projects ---------- */
+.projects-head { padding-block: 88px 0; display: grid; gap: 14px; }
+.projects { scroll-margin-top: 56px; }
+.cta-band { scroll-margin-top: 56px; }
+.projects-head h2 { font-size: clamp(1.8rem, 3.2vw, 2.6rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.05; }
+
+.feature {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 40px 72px; align-items: start;
+  padding-block: 64px; scroll-margin-top: 52px;
+}
+.feature + .feature { border-top: 1px solid var(--rule); }
+.feature.flip .media { order: 2; }
+.media { display: grid; gap: 36px; min-width: 0; }
+.story { display: grid; gap: 18px; align-content: start; min-width: 0; }
+.story-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.area {
+  font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); font-weight: 500;
+}
+.code { font-family: var(--font-mono); font-size: 0.76rem; color: var(--muted); overflow-wrap: anywhere; }
+.story h3 { font-size: clamp(1.5rem, 2.2vw, 1.9rem); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.headline { display: grid; gap: 10px; padding-block: 10px 6px; }
+.kr { display: flex; align-items: center; gap: 10px; }
+.headline .fig {
+  font-family: var(--font-display); font-weight: 700; font-size: clamp(2.2rem, 3.6vw, 3rem);
+  line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.headline .cap { font-size: 0.98rem; color: var(--ink); max-width: 40ch; }
+.summary { color: var(--muted); max-width: 58ch; }
+.points { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; color: var(--muted); font-size: 0.95rem; max-width: 56ch; }
+.points li::marker { color: var(--accent-2); }
+.foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding-top: 8px; }
+.stack { display: flex; flex-wrap: wrap; gap: 6px; }
+.stack span { font-family: var(--font-mono); font-size: 0.72rem; padding: 3px 8px; border-radius: 3px; background: var(--track); color: var(--ink); }
+.links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.links a {
+  font-size: 0.9rem; font-weight: 600; text-decoration: none;
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--rule); color: var(--ink);
+}
+.links a:hover { border-color: var(--accent); color: var(--accent); }
+.links a.primary { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.links a.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.links .soon { font-size: 0.85rem; color: var(--muted); padding: 6px 4px; }
+
+/* Frames */
+.shot {
+  margin: 0; border-radius: 14px; overflow: hidden; background: var(--surface);
+  border: 1px solid var(--rule);
+  box-shadow: 0 1px 2px var(--shadow), 0 24px 48px -24px var(--shadow);
+}
+.shot-bar {
+  display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  background: color-mix(in srgb, var(--track) 70%, var(--surface)); border-bottom: 1px solid var(--rule);
+}
+.shot-bar i { width: 9px; height: 9px; border-radius: 50%; background: color-mix(in srgb, var(--muted) 45%, transparent); }
+.shot-bar span { margin-left: 10px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.screen { position: relative; aspect-ratio: 16 / 10; max-width: 100%; background: var(--tint); }
+.screen img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+.screen.fit { background: #ffffff; }
+.screen.fit img { object-fit: contain; object-position: center; padding: 4%; }
+.ph {
+  position: absolute; inset: 0; display: grid; place-content: center; gap: 6px; text-align: center; padding: 16px;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 12px, color-mix(in srgb, var(--muted) 7%, transparent) 12px 13px),
+    var(--tint);
+  color: var(--muted);
+}
+.ph code { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink); overflow-wrap: anywhere; }
+.ph span { font-size: 0.78rem; }
+
+/* Lighter evidence */
+.evidence { display: grid; gap: 22px; min-width: 0; }
+.chart { display: grid; gap: 14px; }
+.chart .title, .ev-title { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.row { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) auto; gap: 14px; align-items: center; font-size: 0.88rem; }
+.row .val { font-family: var(--font-mono); font-size: 0.82rem; font-variant-numeric: tabular-nums; text-align: right; min-width: 3.4em; }
+.track { position: relative; height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
+.track .seg { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 3px; }
+.seg.base { background: color-mix(in srgb, var(--accent) 38%, var(--track)); }
+.seg.gain, .seg.solo { background: var(--accent); }
+.seg.dim { background: color-mix(in srgb, var(--muted) 55%, var(--track)); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.axis { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); padding-left: calc(6.5em + 14px); padding-right: calc(3.4em + 14px); }
+.tbl { overflow-x: auto; }
+table.mini { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+table.mini th, table.mini td { padding: 10px 8px; text-align: left; vertical-align: top; }
+table.mini thead th { border-bottom: 1px solid var(--rule); font-family: var(--font-mono); font-weight: 500; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+table.mini td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.mini tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--track) 40%, transparent); }
+.footnote { font-size: 0.8rem; color: var(--muted); }
+.dots { display: grid; gap: 16px; }
+.dotrow { display: grid; gap: 8px; }
+.dotrow .k { font-size: 0.92rem; }
+.dotpair { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 6px 12px; align-items: center; font-size: 0.8rem; color: var(--muted); }
+.pips { display: flex; gap: 4px; flex-wrap: wrap; }
+.pips i { width: 12px; height: 12px; border-radius: 50%; background: var(--track); }
+.pips i.on { background: var(--accent); }
+.pips.naive i.on { background: color-mix(in srgb, var(--muted) 70%, var(--track)); }
+
+/* Compact grid */
+.compact-band { background: var(--tint); }
+.compact-band .wrap { padding-block: 88px 104px; display: grid; gap: 32px; }
+.compact { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; align-items: stretch; }
+.card {
+  background: var(--surface); border-radius: 18px; padding: 30px 28px 30px; min-width: 0;
+  display: grid; gap: 18px; scroll-margin-top: 64px;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+.card .shot { border-radius: 10px; box-shadow: none; }
+.card { display: flex; flex-direction: column; }
+.card .shot { flex: none; }
+.card .story { display: flex; flex-direction: column; gap: 14px; flex: 1; }
+.card .foot { margin-top: auto; padding-top: 12px; }
+.card h3 { font-size: 1.3rem; }
+.card .headline .fig { font-size: clamp(1.8rem, 2.6vw, 2.3rem); }
+.card .headline .cap { font-size: 0.95rem; }
+.card .summary, .card .points { font-size: 0.92rem; }
+
+/* ---------- Writing ---------- */
+.writing { padding-block: 88px; display: grid; gap: 32px; scroll-margin-top: 52px; }
+.section-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+.writing h2 { font-size: clamp(1.8rem, 3.2vw, 2.6rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.05; }
+.section-head a.label { color: var(--accent); text-decoration: none; }
+.essays { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.essays li { min-width: 0; }
+.essays a {
+  display: grid; align-content: space-between; gap: 28px; height: 100%; min-height: 200px; padding: 30px;
+  background: var(--surface); border-radius: 18px; color: var(--ink); text-decoration: none;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+.essays strong { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.2rem, 1.9vw, 1.5rem); line-height: 1.2; letter-spacing: -0.01em; }
+.essays .read { font-size: 0.92rem; font-weight: 600; color: var(--accent); }
+.essays .label { color: var(--accent-2); }
+
+/* ---------- Closing CTA ---------- */
+.cta-band { position: relative; background: var(--band); color: var(--band-ink); overflow: hidden; }
+.cta-band::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--band-ink) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--band-ink) 5%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 60%);
+  mask-image: linear-gradient(180deg, transparent, #000 60%);
+}
+.cta-band .wrap { position: relative; padding-block: 88px; display: grid; gap: 32px; }
+.cta-band h2 { font-size: clamp(1.8rem, 3.6vw, 2.8rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.08; max-width: 22ch; }
+.cta-band h2 span { color: var(--band-accent); }
+.cta-band .label { color: var(--band-muted); }
+.email-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--band-muted); }
+.email-row output { color: var(--band-ink); user-select: all; }
+.copy { padding: 6px 12px; font-size: 0.8rem; }
+
+footer { background: var(--band-2); color: var(--band-muted); }
+footer .wrap { padding-block: 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font-size: 0.88rem; }
+footer a { color: var(--band-ink); }
+
+/* ---------- Motion ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .defs .bar i, .track .seg { transition: width 0.35s ease; }
+  .reveal { transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .reveal.pre { opacity: 0; transform: translateY(22px); }
+  .card, .essays a, .shot { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+  .card:hover, .essays a:hover { transform: translateY(-4px); box-shadow: 0 2px 4px var(--shadow), 0 24px 40px -24px var(--shadow); }
+  .feature .shot:hover { transform: translateY(-4px); }
+  .links a, .btn, .rules a { transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1000px) {
+  .hero-body { grid-template-columns: minmax(0, 1fr); gap: 48px; }
+  .count { max-width: 620px; }
+}
+@media (max-width: 900px) {
+  .why { padding-block: 88px; gap: 64px; }
+  .why-top { grid-template-columns: minmax(0, 1fr); }
+  .rules { grid-template-columns: minmax(0, 1fr); gap: 48px; }
+  .bring dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bring dl > div:first-child { grid-column: 1 / -1; grid-row: auto; }
+  .path ol { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .path ol::before { top: 8px; bottom: 8px; left: 7px; right: auto; width: 2px; height: auto; background: linear-gradient(180deg, var(--accent), var(--accent-2)); }
+  .path li::before { top: 4px; }
+  .path a { padding: 0 0 24px 40px; }
+  .feature { grid-template-columns: minmax(0, 1fr); padding-block: 56px; }
+  .feature.flip .media { order: 0; }
+  .compact { grid-template-columns: minmax(0, 1fr); max-width: 640px; }
+  .essays { grid-template-columns: minmax(0, 1fr); }
+  .projects-head { padding-top: 88px; }
+}
+@media (max-width: 520px) {
+  .nav .name { display: none; }
+  .nav .wrap { justify-content: flex-end; }
+  .nav ul { gap: 2px; }
+  .nav li a { padding: 6px 8px; font-size: 0.85rem; }
+  .hero .wrap { padding-block: 56px 72px; gap: 44px; }
+  .count { padding: 20px; }
+  .bring dl { grid-template-columns: minmax(0, 1fr); }
+  .rules li { grid-template-columns: minmax(0, 1fr); }
+  .rules .num { grid-row: auto; font-size: 2.2rem; }
+  .row { grid-template-columns: 5.4em minmax(0, 1fr) auto; gap: 10px; }
+  .axis { padding-left: calc(5.4em + 10px); padding-right: calc(3.4em + 10px); }
+  .essays a { padding: 26px; min-height: 0; }
+  .cta-band .wrap { padding-block: 88px; }
+  .card { padding: 24px 20px; }
+}
+</style>
+
+<nav class="nav" aria-label="Projects">
+  <div class="wrap">
+    <a class="name" href="#top">Mahek Sota</a>
+    <ul>
+      <li><a href="#why">How I work</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#writing">Writing</a></li>
+      <li><a class="nav-cta" href="#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="hero-head">
+      <p class="status"><span class="pulse" aria-hidden="true"></span>Looking for backend and data roles in health tech</p>
+      <h1>Mahek Sota <em>I make messy health data trustworthy enough to build on.</em></h1>
+    </div>
+
+    <div class="hero-body">
+      <div class="hero-left">
+        <p class="lede">Backend engineer at the University of Mississippi, where I build systems used by 10K+ students and faculty. For the last few months I've pointed that work at clinical data, and every project ends in a number: <a href="#counting-diabetics">one dataset with 41 to 474 diabetics depending on the definition</a>, <a href="#what-the-fhir">an HbA1c of 112% on a public FHIR server</a>, and <a href="#scrubbed">a local LLM 260× slower than Presidio for 2.3 points of accuracy</a>.</p>
+        <div class="cta">
+          <a class="btn primary" href="#why">How I work</a>
+          <a class="btn" href="#what-the-fhir">See the projects</a>
+          <a class="btn" href="https://github.com/mahek-sota" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn" href="https://medium.com/@maheksota56" target="_blank" rel="noopener">Medium</a>
+        </div>
+        <div class="standards" aria-label="Standards and datasets used">
+          <span>FHIR R4</span><span>SNOMED CT</span><span>LOINC</span><span>MeSH 2026</span><span>BC5CDR</span><span>Synthea</span><span>PHI</span>
+        </div>
+      </div>
+
+      <div class="count" aria-labelledby="count-q">
+        <p class="label eyebrow"><span class="flag warn" aria-hidden="true">!</span>Try it · from Counting Diabetics</p>
+        <p class="count-q" id="count-q">How many diabetics are in this dataset?</p>
+        <div class="count-big" aria-live="polite">
+          <span class="n" id="count-n">41–474</span>
+          <span class="unit" id="count-unit">patients, depending on the definition</span>
+        </div>
+        <ul class="defs" id="defs">
+          <li><button type="button" data-n="74" aria-pressed="false"><span class="d">Exact SNOMED code 44054006</span><span class="v">74</span><span class="bar"><i style="width:15.6%"></i></span></button></li>
+          <li><button type="button" data-n="115" aria-pressed="false"><span class="d">Description says "type 2 diabetes"</span><span class="v">115</span><span class="bar"><i style="width:24.3%"></i></span></button></li>
+          <li><button type="button" data-n="474" aria-pressed="false"><span class="d">Description says "diabet" (any)</span><span class="v">474</span><span class="bar"><i style="width:100%"></i></span></button></li>
+          <li><button type="button" data-n="41" aria-pressed="false"><span class="d">Any HbA1c ≥ 6.5 (LOINC 4548-4)</span><span class="v">41</span><span class="bar"><i style="width:8.6%"></i></span></button></li>
+          <li><button type="button" data-n="142" aria-pressed="false"><span class="d">Type 2 text OR HbA1c ≥ 6.5</span><span class="v">142</span><span class="bar"><i style="width:30%"></i></span></button></li>
+        </ul>
+        <p class="count-note">Same 1,153 synthetic patients each time. Pick a definition to see its count. <a href="#counting-diabetics">How the counts disagree</a></p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- How I work -->
+  <section class="wrap why" id="why" aria-labelledby="why-h">
+    <div class="why-top reveal">
+      <div class="why-intro">
+        <p class="label eyebrow"><span class="flag ok" aria-hidden="true">OK</span>How I work</p>
+        <h2 id="why-h">Four rules I followed in every project.</h2>
+      </div>
+      <div class="why-ledes">
+        <p class="why-lede">In most software, a wrong number is a bad dashboard. In healthcare, it's a patient left out of a study or a record shown to the wrong person. That's why I'm building my career here, and these are the rules I hold myself to.</p>
+        <p class="why-lede">My first taste was at work: building a dashboard that tracks our School of Pharmacy's research. Seeing how much careful work sits behind every published finding made me want to build the systems that research depends on, not only the ones that report on it.</p>
+      </div>
+    </div>
+
+    <ol class="rules">
+      <li class="reveal">
+        <span class="num" aria-hidden="true">01</span>
+        <span class="r-k">Find the hidden judgment</span>
+        <p>Every patient count hides a definition. I make it explicit, so 41 to 474 becomes a choice you can see instead of an accident.</p>
+        <a href="#counting-diabetics">Shown in: Counting Diabetics, Cohort Explorer</a>
+      </li>
+      <li class="reveal">
+        <span class="num" aria-hidden="true">02</span>
+        <span class="r-k">Measure the ceiling first</span>
+        <p>I score against what's actually achievable, not against 100%. That's how a 2003 string algorithm honestly reaches 94.9% of the achievable chemical accuracy.</p>
+        <a href="#bio-concept-linker">Shown in: Bio Concept Linker</a>
+      </li>
+      <li class="reveal">
+        <span class="num" aria-hidden="true">03</span>
+        <span class="r-k">Never fix data quietly</span>
+        <p>An HbA1c of 112% gets flagged, not corrected. Silent fixes are how wrong clinical numbers end up in reports.</p>
+        <a href="#what-the-fhir">Shown in: what-the-fhir</a>
+      </li>
+      <li class="reveal">
+        <span class="num" aria-hidden="true">04</span>
+        <span class="r-k">Private by default</span>
+        <p>Local models, no raw patient data in repos, and an API that returns 404 instead of 403, so it never confirms another patient's case exists.</p>
+        <a href="#scrubbed">Shown in: scrubbed, Care Platform</a>
+      </li>
+    </ol>
+
+    <div class="bring reveal">
+      <p class="label">What I bring</p>
+      <dl>
+        <div><dt>Experience</dt><dd>Backend and applied AI engineer at the University of Mississippi Libraries for 2+ years. I work with faculty, researchers and librarians to turn operational bottlenecks into production tools used by 10K+ students and faculty, and own them end to end: requirements, architecture, deployment, and improving them once people use them.</dd></div>
+        <div><dt>Backend</dt><dd>FastAPI, PostgreSQL, Redis, Docker, auth and RBAC, real-database tests</dd></div>
+        <div><dt>Health data</dt><dd>FHIR R4, SNOMED CT, LOINC, MeSH, Synthea, phenotype definitions</dd></div>
+        <div><dt>Evaluation</dt><dd>Benchmarks with ceilings, error analysis, reproducible reports</dd></div>
+        <div><dt>Applied AI</dt><dd>Tool-using agents, local LLMs, Presidio, privacy-first design</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- Timeline -->
+  <div class="path-band">
+    <section class="wrap path" aria-labelledby="path-h">
+      <p class="label" id="path-h">How the projects fit together</p>
+      <ol class="reveal">
+        <li><a href="#what-the-fhir"><span class="step">Get the data</span><strong>Read FHIR as it really is</strong><span class="p">what-the-fhir</span></a></li>
+        <li><a href="#bio-concept-linker"><span class="step">Name it</span><strong>Map terms to MeSH codes</strong><span class="p">bio-concept-linker</span></a></li>
+        <li><a href="#counting-diabetics"><span class="step">Decide who counts</span><strong>Make phenotype choices explicit</strong><span class="p">counting-diabetics, cohort-explorer</span></a></li>
+        <li><a href="#scrubbed"><span class="step">Protect it</span><strong>Strip identifiers from notes</strong><span class="p">scrubbed</span></a></li>
+        <li><a href="#cross-border-care-platform"><span class="step">Ship it</span><strong>Build for patients and staff</strong><span class="p">cross-border-care-platform</span></a></li>
+      </ol>
+    </section>
+  </div>
+
+  <!-- Projects -->
+  <section class="projects" id="projects" aria-labelledby="projects-h">
+    <div class="wrap projects-head reveal">
+      <h2 id="projects-h">Projects</h2>
+    </div>
+
+    <div class="wrap">
+      <!-- cohort-explorer (featured) -->
+      <article class="feature" id="cohort-explorer">
+        <div class="media reveal">
+          <figure class="shot">
+            <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>cohort-explorer · definition builder</span></div>
+            <div class="screen"><img src="assets/cohort-builder.gif" loading="lazy" decoding="async" alt="Cohort Definition Explorer in use: picking one of five diabetes definitions updates the patient count, shown here as 74 of 1,153 synthetic patients for the exact SNOMED code." data-ph><div class="ph" aria-hidden="true"><code>assets/cohort-builder.gif</code><span>Image to add</span></div></div>
+          </figure>
+          <div class="evidence">
+            <div class="dots">
+              <div class="legend"><span><i style="background:color-mix(in srgb, var(--muted) 70%, var(--track))"></i>Naive agent</span><span><i style="background:var(--accent)"></i>Context-aware agent</span></div>
+              <div class="dotrow">
+                <span class="k">Gave a valid patient count</span>
+                <div class="dotpair"><span>Naive · 8</span><span class="pips naive" data-on="8"></span><span>Context · 5</span><span class="pips" data-on="5"></span></div>
+              </div>
+              <div class="dotrow">
+                <span class="k">Named the definition behind its count</span>
+                <div class="dotpair"><span>Naive · 0</span><span class="pips naive" data-on="0"></span><span>Context · 3</span><span class="pips" data-on="3"></span></div>
+              </div>
+              <div class="dotrow">
+                <span class="k">Said the answer depends on the definition</span>
+                <div class="dotpair"><span>Naive · 0</span><span class="pips naive" data-on="0"></span><span>Context · 5</span><span class="pips" data-on="5"></span></div>
+              </div>
+            </div>
+            <p class="footnote">Neither agent invented a number in any run.</p>
+          </div>
+        </div>
+        <div class="story reveal">
+          <div class="story-top"><span class="area">Phenotyping · LLM agents</span><span class="code">qwen2.5:7b-instruct · 10 runs each</span></div>
+          <h3>Cohort Definition Explorer</h3>
+          <div class="headline">
+            <p class="label kr"><span class="flag" aria-hidden="true">L</span>Key result</p>
+            <span class="fig" data-count>0 of 10</span>
+            <span class="cap">naive agent runs said what they had counted. It gave a confident number every time.</span>
+          </div>
+          <p class="summary">The follow-up to Counting Diabetics, as a full-stack app. You build a cohort definition, watch the count change live, and see which rows qualified each patient. It also asks a naive LLM agent and a context-aware one the same question, then decodes which hidden definition each answer actually used.</p>
+          <ul class="points">
+            <li>Live mode recovers the patients behind an agent's query and matches them to a definition in the builder.</li>
+            <li>Flags answers that counted records instead of patients, or used no tool at all.</li>
+            <li>Runs offline by default: saved results, no API keys needed.</li>
+          </ul>
+          <div class="foot">
+            <div class="stack"><span>FastAPI</span><span>React</span><span>Ollama</span><span>Claude API</span><span>Tool use</span></div>
+            <div class="links">
+              <a class="primary" href="https://github.com/mahek-sota/cohort-type" target="_blank" rel="noopener">Code</a>
+              <a href="https://medium.com/@maheksota56/i-asked-an-ai-how-many-diabetics-were-in-my-dataset-it-made-the-same-mistake-i-did-110df6799c5e" target="_blank" rel="noopener">Read the write-up</a>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- scrubbed (featured, flipped) -->
+      <article class="feature flip" id="scrubbed">
+        <div class="media reveal">
+          <figure class="shot">
+            <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>scrubbed · report.html</span></div>
+            <div class="screen"><img src="assets/scrubbed-report.png" loading="lazy" decoding="async" alt="The scrubbed benchmark report: 200 synthetic notes and 2,803 identifiers, with F1 scores of 59 for regex, 77 for Presidio and 79 for the local LLM." data-ph><div class="ph" aria-hidden="true"><code>assets/scrubbed-report.png</code><span>Image to add</span></div></div>
+          </figure>
+          <div class="evidence">
+            <div class="chart" role="img" aria-label="F1 overlap scores: Regex 59.4, Presidio 76.5, LLM 78.8. Runtime per note: 0.1 ms, 19 ms, 5.0 s.">
+              <p class="title">F1 (overlap match) and runtime per note</p>
+              <div class="row"><span class="k">Regex</span><span class="track"><span class="seg dim" style="width:59.4%"></span></span><span class="val">59.4</span></div>
+              <div class="row"><span class="k">Presidio</span><span class="track"><span class="seg base" style="width:76.5%"></span></span><span class="val">76.5</span></div>
+              <div class="row"><span class="k">Local LLM</span><span class="track"><span class="seg solo" style="width:78.8%"></span></span><span class="val">78.8</span></div>
+              <div class="axis"><span>0</span><span>50</span><span>100</span></div>
+            </div>
+            <div class="tbl">
+              <table class="mini">
+                <thead><tr><th>Method</th><th style="text-align:right">Recall</th><th style="text-align:right">Time / note</th></tr></thead>
+                <tbody>
+                  <tr><td>Regex</td><td class="num">42.9</td><td class="num">0.1 ms</td></tr>
+                  <tr><td>Presidio</td><td class="num">79.2</td><td class="num">19 ms</td></tr>
+                  <tr><td>Local LLM</td><td class="num">79.7</td><td class="num">5.0 s</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="story reveal">
+          <div class="story-top"><span class="area">Privacy · De-identification</span><span class="code">200 notes · 2,803 identifiers</span></div>
+          <h3>scrubbed</h3>
+          <div class="headline">
+            <p class="label kr"><span class="flag" aria-hidden="true">H</span>Key result</p>
+            <span class="fig" data-count>~260×</span>
+            <span class="cap">slower for the LLM than Presidio, for an F1 gain of 2.3 points. They fail in different places.</span>
+          </div>
+          <p class="summary">A local-only benchmark of three ways to remove patient identifiers from clinical notes: regex, Microsoft Presidio, and a local LLM. It also checks whether each method damages the clinical text it should leave alone. The notes are synthetic and nothing leaves the machine.</p>
+          <ul class="points">
+            <li>Presidio redacted 32% of eponyms like "Cushing syndrome" and read "Glasgow Coma Scale" as a city.</li>
+            <li>Asking the LLM to rewrite a note leaked far more than asking it to point at spans.</li>
+            <li>Ships with an offline interactive report and an explorer covering all 200 notes.</li>
+          </ul>
+          <div class="foot">
+            <div class="stack"><span>Python</span><span>Presidio</span><span>spaCy</span><span>Ollama</span></div>
+            <div class="links">
+              <a class="primary" href="https://github.com/mahek-sota/scrubbed" target="_blank" rel="noopener">Code</a>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- what-the-fhir (featured) -->
+      <article class="feature" id="what-the-fhir">
+        <div class="media reveal">
+          <figure class="shot">
+            <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>what-the-fhir · report.html</span></div>
+            <div class="screen"><img src="assets/what-the-fhir-report.png" loading="lazy" decoding="async" alt="The what-the-fhir report: SMART and HAPI compared side by side, from FHIR version to type 2 diabetes and HbA1c counts." data-ph><div class="ph" aria-hidden="true"><code>assets/what-the-fhir-report.png</code><span>Image to add</span></div></div>
+          </figure>
+          <div class="evidence">
+            <div class="tbl">
+              <table class="mini">
+                <thead><tr><th>Query</th><th style="text-align:right">SMART</th><th style="text-align:right">HAPI</th></tr></thead>
+                <tbody>
+                  <tr><td>Patients with a T2 diabetes Condition</td><td class="num">47</td><td class="num">154</td></tr>
+                  <tr><td>Patients with an HbA1c Observation</td><td class="num">163*</td><td class="num">888*</td></tr>
+                  <tr><td>…with any HbA1c ≥ 6.5%</td><td class="num">14*</td><td class="num">309*</td></tr>
+                  <tr><td>Software</td><td class="num">Smile CDR</td><td class="num">HAPI 8.13</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="footnote">Snapshot from 2026-11-10. * Hit the 20-page cap, so more results exist.</p>
+          </div>
+        </div>
+        <div class="story reveal">
+          <div class="story-top"><span class="area">Interoperability</span><span class="code">GET /Observation?code=loinc|4548-4</span></div>
+          <h3>what-the-fhir</h3>
+          <div class="headline">
+            <p class="label kr"><span class="flag warn" aria-hidden="true">!</span>Key result</p>
+            <span class="fig" data-count>6 vs 1</span>
+            <span class="cap">unit spellings for the same HbA1c test on HAPI, compared with SMART.</span>
+          </div>
+          <p class="summary">A read-only tour of two public FHIR R4 servers, SMART and HAPI, using plain REST calls and raw JSON with no client library, so every request is visible. It reads capability statements, pages through Patients, finds type 2 diabetes Conditions and HbA1c Observations, and catalogues the records that break the rules.</p>
+          <ul class="points">
+            <li>Found a patient born in 2340, an HbA1c of 112%, and HL7 v2 markup leaking into a phone number.</li>
+            <li>Normalizes % and mmol/mol, and flags impossible values instead of quietly fixing them.</li>
+            <li>Ships as one self-contained HTML report with built-in version history.</li>
+          </ul>
+          <div class="foot">
+            <div class="stack"><span>Python</span><span>FHIR REST</span><span>pandas</span><span>pytest</span></div>
+            <div class="links">
+              <a class="primary" href="https://github.com/mahek-sota/what-the-fhir" target="_blank" rel="noopener">Code</a>
+              <span class="soon">Write-up publishing soon</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <!-- Compact grid -->
+    <div class="compact-band">
+      <div class="wrap">
+        <p class="label">More projects</p>
+        <div class="compact">
+          <article class="card reveal" id="counting-diabetics">
+            <figure class="shot">
+              <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>counting-diabetics · report.html</span></div>
+              <div class="screen"><img src="assets/counting-diabetics-report.png" loading="lazy" decoding="async" alt="The Counting Diabetics report: the same 1,153 synthetic patients counted five ways, from 41 to 474, an 11.6× spread." data-ph><div class="ph" aria-hidden="true"><code>assets/counting-diabetics-report.png</code><span>Image to add</span></div></div>
+            </figure>
+            <div class="story">
+              <div class="story-top"><span class="area">Phenotyping</span><span class="code">SNOMED 44054006 · LOINC 4548-4</span></div>
+              <h3>Counting Diabetics</h3>
+              <div class="headline">
+                <p class="label kr"><span class="flag" aria-hidden="true">H</span>Key result</p>
+                <span class="fig" data-count>11.6×</span>
+                <span class="cap">spread between the smallest and largest count, 41 to 474 patients.</span>
+              </div>
+              <p class="summary">Clinical data has no "has diabetes" column. This project counts type 2 diabetics in one synthetic population five defensible ways, using diagnosis codes, description text and HbA1c labs. Then it reports exactly where the definitions disagree, which is the real output.</p>
+              <ul class="points">
+                <li>78 patients have a diabetes complication coded but never the diagnosis itself.</li>
+                <li>101 coded diabetics never have an HbA1c at the diagnostic threshold.</li>
+                <li>Two common definitions overlap on only 14 of 142 patients.</li>
+              </ul>
+              <p class="footnote">1,153 synthetic patients from Synthea. Prediabetes is a property of the generator, not of a real population.</p>
+              <div class="foot">
+                <div class="stack"><span>Python</span><span>pandas</span><span>Synthea</span></div>
+                <div class="links">
+                  <a class="primary" href="https://github.com/mahek-sota/counting-diabetes" target="_blank" rel="noopener">Code</a>
+                  <a href="https://medium.com/@maheksota56/how-many-diabetics-are-in-this-dataset-somewhere-between-41-and-474-816cb283baed" target="_blank" rel="noopener">Read the write-up</a>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card reveal" id="bio-concept-linker">
+            <figure class="shot">
+              <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>bio-concept-linker · report.html</span></div>
+              <div class="screen"><img src="assets/bio-concept-linker-report.png" loading="lazy" decoding="async" alt="The Bio Concept Linker report: 994,718 MeSH synonym strings, and chemical accuracy rising from 84.0% to 94.9% of the coverage ceiling." data-ph><div class="ph" aria-hidden="true"><code>assets/bio-concept-linker-report.png</code><span>Image to add</span></div></div>
+            </figure>
+            <div class="story">
+              <div class="story-top"><span class="area">Clinical terminology</span><span class="code">"dox" → D004317 (Doxorubicin)</span></div>
+              <h3>Bio Concept Linker</h3>
+              <div class="headline">
+                <p class="label kr"><span class="flag ok" aria-hidden="true">OK</span>Key result</p>
+                <span class="fig" data-count>84.0 → 94.9%</span>
+                <span class="cap">of achievable chemical accuracy, from a string algorithm published in 2003.</span>
+              </div>
+              <p class="summary">Entity linking for biomedical text: given a mention like "dox" or "SOB", return the exact MeSH concept ID. It indexes about 995k synonym strings over 355k concepts, measures the coverage ceiling before measuring the retriever, and scores against that ceiling instead of 1.0 on the BC5CDR test set.</p>
+              <ul class="points">
+                <li>Showed chemicals are coverage-bound and diseases are ranking-bound, so they need different fixes.</li>
+                <li>Abbreviations are expanded only from definitions in each mention's own abstract.</li>
+                <li>No model, no training data and no GPU.</li>
+              </ul>
+              <div class="foot">
+                <div class="stack"><span>Python</span><span>TF-IDF</span><span>MeSH XML</span><span>BC5CDR</span></div>
+                <div class="links">
+                  <a class="primary" href="https://github.com/mahek-sota/bio-concept-linker" target="_blank" rel="noopener">Code</a>
+                  <a href="https://medium.com/@maheksota56/a-2003-string-algorithm-beat-my-embedding-models-homework-3876427161e3" target="_blank" rel="noopener">Read the write-up</a>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card reveal" id="cross-border-care-platform">
+            <figure class="shot">
+              <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>cross-border-care-platform · report.html</span></div>
+              <div class="screen"><img src="assets/care-platform-report.png" loading="lazy" decoding="async" alt="The Cross-Border Care Platform engineering report: 79 of 79 tests passing against PostgreSQL, 16 API operations, 9 tables and 3 roles." data-ph><div class="ph" aria-hidden="true"><code>assets/care-platform-report.png</code><span>Image to add</span></div></div>
+            </figure>
+            <div class="story">
+              <div class="story-top"><span class="area">Product engineering</span><span class="code">Roles re-read from the database on every request</span></div>
+              <h3>Cross-Border Care Platform</h3>
+              <div class="headline">
+                <p class="label kr"><span class="flag ok" aria-hidden="true">OK</span>Key result</p>
+                <span class="fig">404, not 403</span>
+                <span class="cap">The API never confirms that another patient's case exists. Backed by 79 tests against real PostgreSQL, migrated fresh on every run.</span>
+              </div>
+              <p class="summary">A care coordination platform for patients seeking treatment abroad. Patients compare providers and prices, submit records and track their case, while coordinators manage cases from the other side. Access control is built so one patient's data stays invisible to another, down to never confirming that another patient's case exists.</p>
+              <ul class="points">
+                <li>One SQL access filter backs both list and fetch, so they can never disagree about what you may see.</li>
+                <li>Roles are read from the database on every request, and refresh tokens are single-use and rotated.</li>
+                <li>Next up: the document and OCR pipeline, and the full case workflow.</li>
+              </ul>
+              <p class="footnote">Registration always creates a patient. Staff accounts are created by an admin.</p>
+              <div class="foot">
+                <div class="stack"><span>FastAPI</span><span>PostgreSQL</span><span>React</span><span>MinIO</span><span>Docker</span></div>
+                <div class="links">
+                  <a class="primary" href="https://github.com/mahek-sota/cross-border-care-platform" target="_blank" rel="noopener">Code</a>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Writing -->
+  <section class="wrap writing" id="writing" aria-labelledby="writing-h">
+    <div class="section-head reveal">
+      <h2 id="writing-h">Writing</h2>
+      <a class="label" href="https://medium.com/@maheksota56" target="_blank" rel="noopener">All posts on Medium</a>
+    </div>
+    <ul class="essays">
+      <li class="reveal">
+        <a href="https://medium.com/@maheksota56/a-backend-engineers-first-month-in-healthcare-data-e924e14691c2" target="_blank" rel="noopener">
+          <span class="label">Essay</span>
+          <strong>A backend engineer's first month in healthcare data</strong>
+          <span class="read">Read on Medium</span>
+        </a>
+      </li>
+      <li class="reveal">
+        <a href="https://medium.com/@maheksota56/the-phone-is-the-last-unstructured-interface-in-healthcare-b7a5efe6747e" target="_blank" rel="noopener">
+          <span class="label">Essay</span>
+          <strong>The phone is the last unstructured interface in healthcare</strong>
+          <span class="read">Read on Medium</span>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+  <!-- Closing call to action -->
+  <section class="cta-band" id="contact" aria-labelledby="cta-h">
+    <div class="wrap reveal">
+      <p class="label eyebrow"><span class="flag" aria-hidden="true">H</span>Open to roles</p>
+      <h2 id="cta-h">Building something in health data? <span>Let's talk.</span></h2>
+      <div class="cta">
+        <a class="btn primary" href="mailto:sotamahek@gmail.com">Email me</a>
+        <a class="btn" href="https://github.com/mahek-sota" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn" href="https://medium.com/@maheksota56" target="_blank" rel="noopener">Medium</a>
+      </div>
+      <p class="email-row">Email: <output id="email-addr">sotamahek@gmail.com</output> <button type="button" class="btn copy" id="copy-email">Copy</button></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Mahek Sota · <a href="https://github.com/mahek-sota" target="_blank" rel="noopener">GitHub</a> · <a href="https://medium.com/@maheksota56" target="_blank" rel="noopener">Medium</a></span>
+    <span>All patient data shown is synthetic or from public test servers.</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Pips: ten dots per agent row, filled to the recorded count.
+  document.querySelectorAll('.pips').forEach(function (el) {
+    var on = parseInt(el.getAttribute('data-on'), 10) || 0;
+    var html = '';
+    for (var i = 0; i < 10; i++) html += '<i class="' + (i < on ? 'on' : '') + '"></i>';
+    el.innerHTML = html;
+    el.setAttribute('aria-label', on + ' of 10 runs');
+    el.setAttribute('role', 'img');
+  });
+
+  // Images: keep the filename placeholder visible when a file is missing.
+  document.querySelectorAll('img[data-ph]').forEach(function (img) {
+    function fail() { img.remove(); }
+    img.addEventListener('error', fail);
+    if (img.complete && img.naturalWidth === 0 && img.getAttribute('src')) fail();
+  });
+
+  // Number tween helpers: animate every number inside a string, keeping its decimals.
+  function frame(text, t) {
+    return text.replace(/\d+(?:\.\d+)?/g, function (m) {
+      var dec = (m.split('.')[1] || '').length;
+      return (parseFloat(m) * t).toFixed(dec);
+    });
+  }
+  function ease(t) { return 1 - Math.pow(1 - t, 3); }
+  function tween(el, from, to, ms, render, done) {
+    var start = null;
+    function step(ts) {
+      if (start === null) start = ts;
+      var p = Math.min(1, (ts - start) / ms);
+      render(from + (to - from) * ease(p));
+      if (p < 1) requestAnimationFrame(step); else if (done) done();
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Definition picker in the hero: the big number counts to the new value.
+  var n = document.getElementById('count-n');
+  var unit = document.getElementById('count-unit');
+  var big = n.parentNode;
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('#defs button'));
+  buttons.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var wasOn = b.getAttribute('aria-pressed') === 'true';
+      buttons.forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+      if (wasOn) {
+        n.textContent = '41–474';
+        unit.textContent = 'patients, depending on the definition';
+        return;
+      }
+      b.setAttribute('aria-pressed', 'true');
+      var v = parseInt(b.getAttribute('data-n'), 10);
+      unit.textContent = 'patients, or ' + (v / 1153 * 100).toFixed(1) + '% of the population';
+      var cur = /^\d+$/.test(n.textContent) ? parseInt(n.textContent, 10) : 0;
+      if (reduce || cur === v) { n.textContent = String(v); return; }
+      big.setAttribute('aria-busy', 'true');
+      tween(n, cur, v, 520, function (x) { n.textContent = String(Math.round(x)); }, function () {
+        n.textContent = String(v);
+        big.setAttribute('aria-busy', 'false');
+      });
+    });
+  });
+
+  // Email copy button.
+  var copyBtn = document.getElementById('copy-email');
+  var addr = document.getElementById('email-addr');
+  copyBtn.addEventListener('click', function () {
+    var text = addr.textContent;
+    function selectIt() {
+      var r = document.createRange(); r.selectNodeContents(addr);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      copyBtn.textContent = 'Selected';
+    }
+    try {
+      navigator.clipboard.writeText(text).then(function () { copyBtn.textContent = 'Copied'; }, selectIt);
+    } catch (e) { selectIt(); }
+  });
+
+  if (reduce || typeof window.IntersectionObserver !== 'function') return;
+
+  // Reveal on scroll: only content that starts below the fold is hidden first.
+  var vh = window.innerHeight;
+  var reveals = Array.prototype.slice.call(document.querySelectorAll('.reveal')).filter(function (el) {
+    return el.getBoundingClientRect().top > vh * 0.92;
+  });
+  reveals.forEach(function (el) { el.classList.add('pre'); });
+  var ro = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.remove('pre'); ro.unobserve(e.target); }
+    });
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+  reveals.forEach(function (el) { ro.observe(el); });
+
+  // Headline numbers count up once when they enter the view.
+  var figs = Array.prototype.slice.call(document.querySelectorAll('.fig[data-count]')).filter(function (el) {
+    return el.getBoundingClientRect().top > vh;
+  });
+  figs.forEach(function (el) {
+    el.dataset.final = el.textContent;
+    el.setAttribute('aria-label', el.dataset.final);
+    el.textContent = frame(el.dataset.final, 0);
+  });
+  var fo = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      var el = e.target, final = el.dataset.final;
+      fo.unobserve(el);
+      tween(el, 0, 1, 1100, function (t) { el.textContent = frame(final, t); }, function () { el.textContent = final; });
+    });
+  }, { threshold: 0.6 });
+  figs.forEach(function (el) { fo.observe(el); });
+})();
+</script>
